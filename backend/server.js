@@ -9,17 +9,13 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-
+app.get('/', (req, res) => {res.send('API está rodando...'); });
 app.post('/api/contact', async (req, res) => {
     const { user_name, user_email, message } = req.body;
 
     try {
-        // 1. Envia o email de contato para você
         await sendMail(user_name, user_email, message);
-
-        // 2. Envia o email de confirmação para o usuário
         await sendConfirmationEmail(user_name, user_email);
-
         res.status(200).json({ message: 'Mensagem enviada com sucesso!' });
     } catch (err) {
         console.error('Erro detalhado:', err);
