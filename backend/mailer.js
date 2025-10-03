@@ -1,49 +1,67 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import dotenv from "dotenv";
 
 dotenv.config();
 
-console.log("USER:", process.env.EMAIL_USER);
-console.log("PASS:", process.env.EMAIL_PASS ? "OK" : "MISSING");
+if (!process.env.RESEND_API_KEY) {
+  console.error("❌ ERRO: A variável de ambiente RESEND_API_KEY é obrigatória.");
+  process.exit(1);
+}
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, 
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-transporter.verify()
-  .then(() => console.log("SMTP conectado com sucesso ✅"))
-  .catch((err) => console.error("Erro no SMTP ❌", err));
+const fromEmail = 'onboarding@resend.dev';
 
-export const sendMail = (name, email, message) => {
-  const mailOptions = {
-    from: process.env.EMAIL_USER, 
-    to: process.env.EMAIL_USER, 
-    replyTo: email,               
-    subject: `Nova mensagem de ${name}`,
-    text: `Nome: ${name}\nEmail: ${email}\nMensagem:\n${message}`,
-  };
 
-  return transporter.sendMail(mailOptions);
+export const sendMail = async (name, email, message) => {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: fromEmail,
+      to: process.env.EMAIL_RECEIVER, 
+      reply_to: email,              
+      subject: `Nova mensagem de ${name} através do site`,
+      text: `Nome: ${name}\nEmail: ${email}\nMensagem:\n${message}`,
+    });
+
+    if (error) {
+      console.error("Erro retornado pelo Resend:", error);
+      throw new Error(error.message);
+    }
+    
+    console.log("E-mail de contato enviado com sucesso:", data);
+    return data;
+
+  } catch (error) {
+    console.error("Falha ao enviar e-mail de contato:", error);
+    throw error;
+  }
 };
 
-export const sendConfirmationEmail = (userName, userEmail) => {
-  const mailOptions = {
-    from: process.env.EMAIL_USER, 
-    to: userEmail,                
-    subject: 'Recebemos sua mensagem!',
-    html: `
-      <p>Olá, ${userName}!</p>
-      <p>Obrigado por entrar em contato. Eu recebi sua mensagem e responderei em breve.</p>
-      <p>Atenciosamente,</p>
-      <p>Kayo Weiber</p>
-    `,
-  };
 
-  return transporter.sendMail(mailOptions);
+export const sendConfirmationEmail = async (userName, userEmail) => {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: fromEmail,
+      to: userEmail,
+      subject: 'Recebemos sua mensagem!',
+      html: `
+        <p>Olá, ${userName}!</p>
+        <p>Obrigado por entrar em contato. Eu recebi sua mensagem e responderei em breve.</p>
+        <p>Atenciosamente,</p>
+        <p>Kayo Weiber</p>
+      `,
+    });
+
+    if (error) {
+      console.error("Erro retornado pelo Resend:", error);
+      throw new Error(error.message);
+    }
+    
+    console.log("E-mail de confirmação enviado com sucesso:", data);
+    return data;
+
+  } catch (error) {
+    console.error("Falha ao enviar e-mail de confirmação:", error);
+    throw error;
+  }
 };
