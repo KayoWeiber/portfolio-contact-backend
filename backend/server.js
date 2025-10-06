@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-// Importe ambas as funções
 import { sendMail, sendConfirmationEmail } from './mailer.js';
 
 dotenv.config();
