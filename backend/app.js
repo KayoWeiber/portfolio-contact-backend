@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import cors from 'cors';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
@@ -7,6 +8,7 @@ import { validateContact } from './validation.js';
 export const createApp = ({
   allowedOrigins,
   contactRateLimitMax = 5,
+  logger = console,
   mailer,
   trustProxy = false,
 }) => {
@@ -15,6 +17,32 @@ export const createApp = ({
 
   app.disable('x-powered-by');
   app.set('trust proxy', trustProxy);
+  app.use((request, response, next) => {
+    const startedAt = process.hrtime.bigint();
+    const requestId = randomUUID();
+
+    response.setHeader('X-Request-Id', requestId);
+    response.on('finish', () => {
+      const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+
+      logger.info(
+        JSON.stringify({
+          event: 'http_request',
+          timestamp: new Date().toISOString(),
+          requestId,
+          method: request.method,
+          path: request.path,
+          status: response.statusCode,
+          durationMs: Number(durationMs.toFixed(2)),
+          ip: request.ip,
+          origin: request.get('origin') || null,
+          userAgent: request.get('user-agent') || null,
+        }),
+      );
+    });
+
+    next();
+  });
   app.use(helmet());
   app.use((_request, response, next) => {
     response.setHeader('Cache-Control', 'no-store');
@@ -24,6 +52,7 @@ export const createApp = ({
     cors({
       methods: ['GET', 'POST', 'OPTIONS'],
       allowedHeaders: ['Content-Type'],
+      exposedHeaders: ['X-Request-Id'],
       maxAge: 86400,
       origin(origin, callback) {
         if (!origin || allowedOriginSet.has(origin)) return callback(null, true);
@@ -56,7 +85,7 @@ export const createApp = ({
     try {
       await mailer.sendContact(validation.value);
     } catch (error) {
-      console.error('Falha ao enviar a mensagem de contato:', error.message);
+      logger.error('Falha ao enviar a mensagem de contato:', error.message);
       return response.status(502).json({ error: 'Não foi possível enviar a mensagem.' });
     }
 
@@ -64,7 +93,7 @@ export const createApp = ({
       await mailer.sendConfirmation(validation.value);
     } catch (error) {
       // A mensagem principal já foi entregue; responder com erro faria o cliente reenviá-la.
-      console.error('Falha ao enviar a confirmação:', error.message);
+      logger.error('Falha ao enviar a confirmação:', error.message);
     }
 
     return response.status(200).json({ message: 'Mensagem enviada com sucesso!' });
@@ -84,7 +113,7 @@ export const createApp = ({
     }
 
     const status = Number.isInteger(error.status) ? error.status : 500;
-    if (status >= 500) console.error('Erro interno da API:', error.message);
+    if (status >= 500) logger.error('Erro interno da API:', error.message);
     return response.status(status).json({
       error: status === 403 ? error.message : 'Erro interno do servidor.',
     });

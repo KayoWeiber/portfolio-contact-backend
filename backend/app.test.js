@@ -12,10 +12,13 @@ afterEach(async () => {
   );
 });
 
-const startApi = async (mailer = {}) => {
+const silentLogger = { info() {}, error() {} };
+
+const startApi = async (mailer = {}, logger = silentLogger) => {
   const app = createApp({
     allowedOrigins: ['https://portfolio.example'],
     contactRateLimitMax: 100,
+    logger,
     mailer: {
       sendContact: mailer.sendContact || (async () => {}),
       sendConfirmation: mailer.sendConfirmation || (async () => {}),
@@ -36,6 +39,28 @@ test('expõe um health check sem revelar tecnologia', async () => {
   assert.equal(response.headers.get('x-powered-by'), null);
   assert.equal(response.headers.get('cache-control'), 'no-store');
   assert.ok(response.headers.get('x-content-type-options'));
+  assert.ok(response.headers.get('x-request-id'));
+});
+
+test('registra cada requisição sem incluir o corpo enviado', async () => {
+  const entries = [];
+  const baseUrl = await startApi({}, {
+    info: (entry) => entries.push(JSON.parse(entry)),
+    error() {},
+  });
+  const response = await fetch(baseUrl, {
+    headers: { origin: 'https://portfolio.example' },
+  });
+  await response.json();
+
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].event, 'http_request');
+  assert.equal(entries[0].method, 'GET');
+  assert.equal(entries[0].path, '/');
+  assert.equal(entries[0].status, 200);
+  assert.equal(entries[0].origin, 'https://portfolio.example');
+  assert.equal(entries[0].requestId, response.headers.get('x-request-id'));
+  assert.equal('body' in entries[0], false);
 });
 
 test('valida os dados antes de chamar o serviço de e-mail', async () => {
@@ -125,23 +150,16 @@ test('não transforma falha da confirmação em reenvio da mensagem principal', 
       throw new Error('indisponível');
     },
   });
-  const originalConsoleError = console.error;
-  console.error = () => {};
+  const response = await fetch(`${baseUrl}/api/contact`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      user_name: 'Maria Silva',
+      user_email: 'maria@example.com',
+      message: 'Uma mensagem suficientemente longa.',
+    }),
+  });
 
-  try {
-    const response = await fetch(`${baseUrl}/api/contact`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        user_name: 'Maria Silva',
-        user_email: 'maria@example.com',
-        message: 'Uma mensagem suficientemente longa.',
-      }),
-    });
-
-    assert.equal(response.status, 200);
-    assert.equal(contactCalls, 1);
-  } finally {
-    console.error = originalConsoleError;
-  }
+  assert.equal(response.status, 200);
+  assert.equal(contactCalls, 1);
 });

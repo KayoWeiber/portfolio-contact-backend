@@ -88,6 +88,12 @@ Respostas possíveis: `200` para envio concluído, `400` para dados ou JSON inv�
 para origem não permitida, `413` para corpo maior que 10 KB, `429` para excesso de envios e
 `502` quando o provedor de e-mail não aceitar a mensagem.
 
+## Logs de requisições
+
+Cada requisição gera uma linha JSON nos logs da aplicação com data, identificador, método,
+rota, status, duração, IP, origem e navegador. O corpo do formulário, e-mails e credenciais
+não são registrados. No Render, essas linhas ficam disponíveis na aba **Logs** do serviço.
+
 ## Proteções implementadas
 
 - lista explícita de origens CORS;
@@ -99,6 +105,7 @@ para origem não permitida, `413` para corpo maior que 10 KB, `429` para excesso
 - escape do nome inserido no HTML da confirmação;
 - validação das variáveis de ambiente antes de abrir a porta;
 - erros externos não expostos ao cliente;
+- logs estruturados sem o conteúdo do formulário;
 - testes automatizados sem envio de e-mails reais.
 
 ## Estrutura
