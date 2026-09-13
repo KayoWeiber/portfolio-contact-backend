@@ -5,7 +5,7 @@
 
 # Pasta de dependências
 node_modules/
-
+.vscode/
 # Logs e erros
 npm-debug.log*
 yarn-debug.log*
