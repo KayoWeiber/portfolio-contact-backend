@@ -97,6 +97,24 @@ test('bloqueia origens não autorizadas', async () => {
   assert.equal(response.status, 403);
 });
 
+test('responde ao preflight OPTIONS para uma origem autorizada', async () => {
+  const baseUrl = await startApi();
+  const response = await fetch(`${baseUrl}/api/contact`, {
+    method: 'OPTIONS',
+    headers: {
+      origin: 'https://portfolio.example',
+      'access-control-request-method': 'POST',
+      'access-control-request-headers': 'content-type',
+    },
+  });
+
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get('access-control-allow-origin'), 'https://portfolio.example');
+  assert.match(response.headers.get('access-control-allow-methods'), /OPTIONS/);
+  assert.match(response.headers.get('access-control-allow-methods'), /POST/);
+  assert.match(response.headers.get('access-control-allow-headers'), /Content-Type/i);
+});
+
 test('não transforma falha da confirmação em reenvio da mensagem principal', async () => {
   let contactCalls = 0;
   const baseUrl = await startApi({
