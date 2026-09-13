@@ -22,7 +22,7 @@ export const createApp = ({
   });
   app.use(
     cors({
-      methods: ['GET', 'POST'],
+      methods: ['GET', 'POST','OPTIONS'],
       allowedHeaders: ['Content-Type'],
       maxAge: 86400,
       origin(origin, callback) {
