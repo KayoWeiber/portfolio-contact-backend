@@ -1,85 +1,75 @@
-# 📬 Portfolio Contact Backend
+# Portfolio Contact Backend
 
-Este é o backend do meu portfólio, responsável por receber os dados do formulário de contato e enviar e-mails usando **Node.js**, **Express** e **Resend**.
+API do formulário de contato do portfólio, construída com Node.js, Express e Nodemailer.
 
----
+## Requisitos
 
-## 🚀 Tecnologias
+- Node.js 20 ou superior
+- Uma conta Gmail com verificação em duas etapas
+- Uma senha de app do Google para autenticação SMTP
 
-- **Node.js** - Ambiente de execução JavaScript
-- **Express** - Framework web minimalista
-- **Resend** - Serviço de envio de e-mails
-- **Dotenv** - Gerenciamento de variáveis de ambiente
-- **CORS** - Middleware para habilitar Cross-Origin Resource Sharing
-
----
-
-## 📥 Instalação
+## Instalação
 
 ```bash
 git clone https://github.com/KayoWeiber/portfolio-contact-backend.git
-cd portfolio-contact-backend/backend
-npm install
+cd portfolio-contact-backend
+npm --prefix backend install
 ```
 
----
+Ao abrir a pasta no VS Code, o terminal integrado inicia automaticamente em `backend/`.
+Também é possível executar todos os comandos abaixo diretamente da raiz do repositório.
 
-## ⚙️ Configuração
+## Configuração
 
-Crie um arquivo `.env` na pasta `backend/` com as seguintes variáveis:
+Copie `backend/.env.example` para `backend/.env` e preencha:
 
 ```env
-RESEND_API_KEY=sua_chave_api_do_resend
-EMAIL_RECEIVER=seu_email@exemplo.com
+EMAIL_USER=seu-email@gmail.com
+EMAIL_PASS=sua-senha-de-app-do-google
+EMAIL_TO=email-que-recebera-as-mensagens@exemplo.com
 PORT=5000
+CORS_ALLOWED_ORIGINS=http://localhost:5173,https://seu-portfolio.com
+CONTACT_RATE_LIMIT_MAX=5
+TRUST_PROXY=false
 ```
 
-### Variáveis de Ambiente
+`EMAIL_USER` é a conta Gmail usada para enviar, `EMAIL_PASS` é a senha de app dessa conta e
+`EMAIL_TO` é o endereço que receberá as mensagens do formulário. Não utilize a senha normal
+da conta Google. Informe em `CORS_ALLOWED_ORIGINS` apenas as URLs exatas que devem acessar a
+API, separadas por vírgula.
 
-| Variável | Descrição | Obrigatória |
-|----------|-----------|-------------|
-| `RESEND_API_KEY` | Chave de API do Resend para envio de e-mails | ✅ Sim |
-| `EMAIL_RECEIVER` | E-mail que receberá as mensagens de contato | ✅ Sim |
-| `PORT` | Porta em que o servidor irá rodar (padrão: 5000) | ❌ Não |
+Se a hospedagem utilizar um proxy reverso, configure `TRUST_PROXY` conforme a quantidade de
+proxies confiáveis entre o cliente e o Express (geralmente `1`). Não habilite essa opção sem
+conhecer a topologia da hospedagem, pois o limite de requisições depende do IP do cliente.
 
----
+> Nunca publique o arquivo `.env` nem reutilize a senha de app em outros serviços.
 
-## 🚀 Executando o Projeto
+## Execução
 
-### Modo de Desenvolvimento
+Na raiz do repositório:
 
 ```bash
 npm run dev
-```
-
-### Modo de Produção
-
-```bash
 npm start
+npm test
+npm run audit
 ```
 
-O servidor estará disponível em `http://localhost:5000`
+Dentro de `backend/`, os comandos equivalentes são `npm run dev`, `npm start`, `npm test` e
+`npm audit`.
 
----
-
-## 📡 API Endpoints
+## Endpoints
 
 ### `GET /`
 
-Verifica se a API está funcionando.
+Health check:
 
-**Resposta:**
+```json
+{ "status": "ok" }
 ```
-API está rodando...
-```
-
----
 
 ### `POST /api/contact`
 
-Envia uma mensagem de contato através do formulário.
-
-**Body (JSON):**
 ```json
 {
   "user_name": "João Silva",
@@ -88,117 +78,43 @@ Envia uma mensagem de contato através do formulário.
 }
 ```
 
-**Campos:**
+Regras dos campos:
 
-| Campo | Tipo | Descrição | Obrigatório |
-|-------|------|-----------|-------------|
-| `user_name` | string | Nome do usuário | ✅ Sim |
-| `user_email` | string | E-mail do usuário | ✅ Sim |
-| `message` | string | Mensagem de contato | ✅ Sim |
+- `user_name`: texto entre 2 e 100 caracteres;
+- `user_email`: endereço válido com até 254 caracteres;
+- `message`: texto entre 10 e 5000 caracteres.
 
-**Resposta de Sucesso (200):**
-```json
-{
-  "message": "Mensagem enviada com sucesso!"
-}
+Respostas possíveis: `200` para envio concluído, `400` para dados ou JSON inválidos, `403`
+para origem não permitida, `413` para corpo maior que 10 KB, `429` para excesso de envios e
+`502` quando o provedor de e-mail não aceitar a mensagem.
+
+## Proteções implementadas
+
+- lista explícita de origens CORS;
+- limite configurável de envios por IP a cada 15 minutos;
+- validação, normalização e limites para todos os campos;
+- limite de 10 KB para o corpo JSON;
+- cabeçalhos HTTP de segurança com Helmet;
+- respostas sem cache e sem identificação do Express;
+- escape do nome inserido no HTML da confirmação;
+- validação das variáveis de ambiente antes de abrir a porta;
+- erros externos não expostos ao cliente;
+- testes automatizados sem envio de e-mails reais.
+
+## Estrutura
+
+```text
+backend/
+├── app.js          # Middlewares, rotas e tratamento de erros
+├── config.js       # Leitura e validação do ambiente
+├── mailer.js       # Integração SMTP isolada com o Nodemailer
+├── server.js       # Composição e inicialização do servidor
+├── validation.js   # Validação dos dados de contato
+├── *.test.js       # Testes automatizados
+├── .env.example    # Modelo de configuração segura
+└── package.json
 ```
 
-**Resposta de Erro (500):**
-```json
-{
-  "error": "Erro ao enviar e-mail."
-}
-```
+## Licença
 
-**Comportamento:**
-1. Envia um e-mail para o proprietário do portfólio com os dados do formulário
-2. Envia um e-mail de confirmação automático para o usuário que enviou a mensagem
-
----
-
-## 📧 Funcionalidades de E-mail
-
-### E-mail para o Proprietário
-Quando uma mensagem é enviada, o proprietário do portfólio recebe um e-mail com:
-- Nome do remetente
-- E-mail do remetente (configurado como reply-to)
-- Mensagem enviada
-
-### E-mail de Confirmação
-O usuário que envia a mensagem recebe automaticamente um e-mail de confirmação informando que a mensagem foi recebida.
-
----
-
-## 🛠️ Estrutura do Projeto
-
-```
-portfolio-contact-backend/
-├── backend/
-│   ├── server.js       # Configuração do servidor Express
-│   ├── mailer.js       # Lógica de envio de e-mails
-│   ├── package.json    # Dependências do projeto
-│   └── .env           # Variáveis de ambiente (não versionado)
-├── LICENSE
-└── README.md
-```
-
----
-
-## 🔒 Segurança
-
-- As variáveis sensíveis (API keys, e-mails) são armazenadas em arquivo `.env`
-- CORS configurado para aceitar requisições de origens específicas
-- Validação de presença da API key ao iniciar o servidor
-
----
-
-## 📝 Exemplo de Uso com Fetch
-
-```javascript
-const sendContactForm = async () => {
-  try {
-    const response = await fetch('http://localhost:5000/api/contact', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user_name: 'João Silva',
-        user_email: 'joao@exemplo.com',
-        message: 'Olá! Gostaria de conversar sobre um projeto.'
-      })
-    });
-
-    const data = await response.json();
-    console.log(data.message);
-  } catch (error) {
-    console.error('Erro ao enviar mensagem:', error);
-  }
-};
-```
-
----
-
-## 🤝 Contribuindo
-
-Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests.
-
----
-
-## 📄 Licença
-
-Este projeto está sob a licença especificada no arquivo [LICENSE](LICENSE).
-
----
-
-## 👨‍💻 Autor
-
-**Kayo Weiber**
-
-- GitHub: [@KayoWeiber](https://github.com/KayoWeiber)
-
----
-
-## 🐛 Problemas Conhecidos
-
-Se você encontrar algum problema, por favor abra uma issue no repositório do GitHub
+[MIT](LICENSE)

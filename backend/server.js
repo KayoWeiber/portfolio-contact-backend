@@ -1,26 +1,20 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import { sendMail, sendConfirmationEmail } from './mailer.js';
+import { createApp } from './app.js';
+import { loadConfig } from './config.js';
+import { createMailer } from './mailer.js';
 
-dotenv.config();
-const app = express();
+try {
+  const config = loadConfig();
+  const app = createApp({
+    allowedOrigins: config.allowedOrigins,
+    contactRateLimitMax: config.contactRateLimitMax,
+    mailer: createMailer(config.email),
+    trustProxy: config.trustProxy,
+  });
 
-app.use(cors());
-app.use(express.json());
-app.get('/', (req, res) => {res.send('API está rodando...'); });
-app.post('/api/contact', async (req, res) => {
-    const { user_name, user_email, message } = req.body;
-
-    try {
-        await sendMail(user_name, user_email, message);
-        await sendConfirmationEmail(user_name, user_email);
-        res.status(200).json({ message: 'Mensagem enviada com sucesso!' });
-    } catch (err) {
-        console.error('Erro detalhado:', err);
-        res.status(500).json({ error: 'Erro ao enviar e-mail.' });
-    }
-});
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+  app.listen(config.port, () => {
+    console.log(`Servidor rodando na porta ${config.port}`);
+  });
+} catch (error) {
+  console.error(`Falha ao iniciar a API: ${error.message}`);
+  process.exitCode = 1;
+}

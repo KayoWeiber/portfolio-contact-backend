@@ -1,0 +1,10 @@
+{
+  "name": "portfolio-contact-api-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix backend run dev",
+    "start": "npm --prefix backend start",
+    "test": "npm --prefix backend test",
+    "audit": "npm --prefix backend audit"
+  }
+}

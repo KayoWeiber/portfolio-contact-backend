@@ -1,5 +1,7 @@
 # Arquivo de variáveis de ambiente
 .env
+.env.*
+!.env.example
 
 # Pasta de dependências
 node_modules/
@@ -8,6 +10,10 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
+
+# Cobertura de testes
+coverage/
 
 # Sistema
 .DS_Store
